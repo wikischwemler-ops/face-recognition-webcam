@@ -12,12 +12,14 @@ Geräte-Manager gelesen (intern, extern/USB, virtuell), An- und Abstecken wird l
 ## Bauen & starten
 
 ```powershell
-cd D:\workspace\Gestichtsverfolgung
+cd D:\workspace\wikischwemler-github\face-recognition-webcam
 dotnet build -c Release
 dotnet run -c Release
 ```
 
 Oder in Visual Studio `FaceTrackingApp.sln` öffnen → F5.
+
+Eigenständige EXE (ohne installiertes .NET): `build.cmd` ausführen, Ergebnis liegt in `publish\`.
 
 Beim ersten Build wird zusätzlich das **YuNet**-Modell (~230 KB, OpenCV Zoo) nach `Assets\` geladen.
 Ohne Internet wird automatisch das mitgelieferte ResNet-SSD-Modell verwendet (Abschalten: `-p:DownloadYuNet=false`).

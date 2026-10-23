@@ -4,6 +4,10 @@ obj/
 *.user
 *.suo
 
+# Ausgaben von build.cmd
+publish/
+build.log
+
 # Visual Studio / Copilot-Cache
 .vs/
 
