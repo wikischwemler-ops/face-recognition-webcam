@@ -24,15 +24,22 @@ namespace FaceTrackingApp.Services
     /// <summary>YuNet (OpenCV Zoo): schnell, genau, auch kleine/seitliche Gesichter.</summary>
     public sealed class YuNetFaceDetector : IFaceDetector
     {
-        private readonly FaceDetectorYN _detector;
+        private readonly string _modelPath;
+        private readonly float _scoreThreshold;
         private readonly Mat _faces = new();
+        private FaceDetectorYN _detector;
         private Size _inputSize;
 
         public YuNetFaceDetector(string modelPath, float scoreThreshold = 0.75f)
         {
+            _modelPath = modelPath;
+            _scoreThreshold = scoreThreshold;
             _inputSize = new Size(320, 240);
-            _detector = FaceDetectorYN.Create(modelPath, string.Empty, _inputSize, scoreThreshold, 0.3f, 5000);
+            _detector = CreateDetector(_inputSize);
         }
+
+        private FaceDetectorYN CreateDetector(Size inputSize) =>
+            FaceDetectorYN.Create(_modelPath, string.Empty, inputSize, _scoreThreshold, 0.3f, 5000);
 
         public string Name => "YuNet (DNN)";
         public int PreferredWidth => 480;
@@ -42,13 +49,18 @@ namespace FaceTrackingApp.Services
             var size = new Size(bgr.Width, bgr.Height);
             if (size != _inputSize)
             {
-                _detector.SetInputSize(size);
+                // OpenCvSharp 4.13.0.20260627 bietet noch kein SetInputSize → Detektor für die neue Größe neu anlegen.
+                // Passiert nur bei Auflösungswechsel, nicht pro Frame.
+                var old = _detector;
+                _detector = CreateDetector(size);
+                old.Dispose();
                 _inputSize = size;
             }
 
             _detector.Detect(bgr, _faces);
-            var result = new List<DetectedFace>(_faces.Rows);
-            for (int i = 0; i < _faces.Rows; i++)
+            int rows = _faces.Rows;
+            var result = new List<DetectedFace>(rows);
+            for (int i = 0; i < rows; i++)
             {
                 // Zeile: x, y, w, h, 5 Landmarken (x,y), Score
                 float x = _faces.At<float>(i, 0), y = _faces.At<float>(i, 1);
@@ -93,7 +105,8 @@ namespace FaceTrackingApp.Services
             // Ausgabe: [1, 1, N, 7] → (imageId, classId, conf, x1, y1, x2, y2) normiert
             using var det = Mat.FromPixelData(output.Size(2), output.Size(3), MatType.CV_32F, output.Ptr(0));
             var result = new List<DetectedFace>();
-            for (int i = 0; i < det.Rows; i++)
+            int rows = det.Rows;
+            for (int i = 0; i < rows; i++)
             {
                 float conf = det.At<float>(i, 2);
                 if (conf < _threshold)
