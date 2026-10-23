@@ -1,0 +1,11 @@
+# Build-Ausgaben
+bin/
+obj/
+*.user
+*.suo
+
+# Visual Studio / Copilot-Cache
+.vs/
+
+# Automatisch geladenes Modell (wird beim Build neu geladen)
+Assets/face_detection_yunet_2023mar.onnx

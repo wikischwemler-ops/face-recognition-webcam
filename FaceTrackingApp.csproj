@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- .NET 10 (LTS) + Windows-SDK-Projektion für Windows.Devices.Enumeration (Kameraliste / Hot-Plug) -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- OpenCV 4.13 liefert nur noch x64-Binaries -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>AnyCPU;x64</Platforms>
+    <RootNamespace>FaceTrackingApp</RootNamespace>
+    <AssemblyName>FaceTrackingApp</AssemblyName>
+    <!-- WPF Fluent-Theme (ThemeMode) ist als "experimentell" markiert -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <TieredPGO>true</TieredPGO>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <!-- YuNet-Modell (bessere Erkennung) beim ersten Build automatisch laden; mit -p:DownloadYuNet=false abschaltbar -->
+    <DownloadYuNet Condition="'$(DownloadYuNet)' == ''">true</DownloadYuNet>
+    <YuNetFile>$(MSBuildProjectDirectory)\Assets\face_detection_yunet_2023mar.onnx</YuNetFile>
+    <YuNetUrl>https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx</YuNetUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4.Windows" Version="4.13.0.20260627" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Alte Build-Ausgaben / VS-Daten nie mitkompilieren -->
+  <ItemGroup>
+    <Compile Remove="bin\**;obj\**;.vs\**" />
+    <None Remove="bin\**;obj\**;.vs\**" />
+    <Page Remove="bin\**;obj\**;.vs\**" />
+  </ItemGroup>
+
+  <Target Name="DownloadYuNetModel" BeforeTargets="BeforeBuild" Condition="'$(DownloadYuNet)' == 'true' And !Exists('$(YuNetFile)')">
+    <Message Importance="high" Text="Lade YuNet-Gesichtsdetektor (ca. 230 KB) ..." />
+    <DownloadFile SourceUrl="$(YuNetUrl)" DestinationFolder="$(MSBuildProjectDirectory)\Assets" Retries="2" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+  <!-- Falls die Datei erst in diesem Build geladen wurde, ist sie nicht im Glob enthalten: explizit kopieren -->
+  <Target Name="CopyYuNetModel" AfterTargets="Build" Condition="Exists('$(YuNetFile)')">
+    <Copy SourceFiles="$(YuNetFile)" DestinationFolder="$(OutDir)Assets" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PublishYuNetModel" AfterTargets="Publish" Condition="Exists('$(YuNetFile)')">
+    <Copy SourceFiles="$(YuNetFile)" DestinationFolder="$(PublishDir)Assets" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

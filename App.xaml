@@ -1,0 +1,19 @@
+<Application x:Class="FaceTrackingApp.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ThemeMode="Dark"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <!-- Farbpalette (dunkel, gut lesbar) -->
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#18181C" />
+        <SolidColorBrush x:Key="CardBrush" Color="#222228" />
+        <SolidColorBrush x:Key="StrokeBrush" Color="#34343C" />
+        <SolidColorBrush x:Key="BadgeBrush" Color="#3A3A44" />
+        <SolidColorBrush x:Key="TextBrush" Color="#F3F3F5" />
+        <SolidColorBrush x:Key="SubtleTextBrush" Color="#A6A6B2" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#4CC2FF" />
+        <SolidColorBrush x:Key="FaceBrush" Color="#6CCB5F" />
+        <SolidColorBrush x:Key="PrimaryFaceBrush" Color="#FFB224" />
+        <SolidColorBrush x:Key="WarningBrush" Color="#FCE100" />
+    </Application.Resources>
+</Application>
