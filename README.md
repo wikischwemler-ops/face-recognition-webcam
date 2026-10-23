@@ -22,6 +22,7 @@ Oder in Visual Studio `FaceTrackingApp.sln` öffnen → F5.
 Eigenständige EXE (ohne installiertes .NET): `build.cmd` ausführen, Ergebnis liegt in `publish\`.
 
 Beim ersten Build wird zusätzlich das **YuNet**-Modell (~230 KB, OpenCV Zoo) nach `Assets\` geladen.
+Ebenso die Augen-Cascade `haarcascade_eye.xml` (~340 KB) für Stufe 2.
 Ohne Internet wird automatisch das mitgelieferte ResNet-SSD-Modell verwendet (Abschalten: `-p:DownloadYuNet=false`).
 
 > Nach dem Umstieg von .NET 6/8: einmal **Projektmappe bereinigen** bzw. die Ordner `bin\` und `obj\` löschen.
@@ -32,6 +33,7 @@ Ohne Internet wird automatisch das mitgelieferte ResNet-SSD-Modell verwendet (Ab
 |---|---|
 | Kameraauswahl | Alle aktivierten Kameras laut Geräte-Manager, mit echtem Namen und Kennzeichnung **Intern / Extern (USB) / Virtuell**; Liste aktualisiert sich beim An-/Abstecken automatisch |
 | Erkennung | YuNet (DNN) → ResNet-SSD (DNN) → Haar-Cascade als Rückfallebene, mit Konfidenzwert |
+| Augen (Stufe 2) | Haar-Augen-Cascade im oberen Gesichtsbereich, je Gesichtshälfte ein Auge; mit YuNet dienen dessen Augen-Landmarken als Rückfallebene. Gesicht gelb, Augen grün, abschaltbar über „Augen“ |
 | Tracking | Stabile IDs, Glättung gegen Zittern, kurzes Nachhalten bei Aussetzern; größtes Gesicht = Fokus (orange, Fadenkreuz) |
 | Anzeige | `WriteableBitmap` wird im Bildschirmtakt aktualisiert, Overlays als WPF-Vektorgrafik |
 | Optionen | Auflösung 640×480 / 1280×720 / 1920×1080, Spiegeln, Rahmen ein/aus |

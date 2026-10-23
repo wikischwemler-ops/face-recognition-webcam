@@ -12,8 +12,10 @@
         <SolidColorBrush x:Key="TextBrush" Color="#F3F3F5" />
         <SolidColorBrush x:Key="SubtleTextBrush" Color="#A6A6B2" />
         <SolidColorBrush x:Key="AccentBrush" Color="#4CC2FF" />
-        <SolidColorBrush x:Key="FaceBrush" Color="#6CCB5F" />
+        <!-- Stufe 1: Gesicht gelb (Fokus-Gesicht etwas wärmer), Stufe 2: Augen grün -->
+        <SolidColorBrush x:Key="FaceBrush" Color="#FFD60A" />
         <SolidColorBrush x:Key="PrimaryFaceBrush" Color="#FFB224" />
+        <SolidColorBrush x:Key="EyeBrush" Color="#3DDC84" />
         <SolidColorBrush x:Key="WarningBrush" Color="#FCE100" />
     </Application.Resources>
 </Application>

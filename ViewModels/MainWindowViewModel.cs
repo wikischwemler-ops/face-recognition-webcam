@@ -43,7 +43,7 @@ namespace FaceTrackingApp.ViewModels
 
         private CameraInfo? _selectedCamera;
         private ResolutionOption _selectedResolution;
-        private bool _isRunning, _isBusy, _mirror = true, _showOverlay = true, _hasNoCameras;
+        private bool _isRunning, _isBusy, _mirror = true, _showOverlay = true, _showEyes = true, _hasNoCameras;
         private string _statusText = "Starte …";
         private Brush _statusBrush = BusyBrush;
         private ImageSource? _videoSource;
@@ -158,6 +158,9 @@ namespace FaceTrackingApp.ViewModels
         public double ImageScaleX => Mirror ? -1 : 1;
 
         public bool ShowOverlay { get => _showOverlay; set => SetProperty(ref _showOverlay, value); }
+
+        /// <summary>Stufe 2: grüne Rahmen an den Augen anzeigen.</summary>
+        public bool ShowEyes { get => _showEyes; set => SetProperty(ref _showEyes, value); }
 
         public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
         public Brush StatusBrush { get => _statusBrush; private set => SetProperty(ref _statusBrush, value); }
@@ -421,6 +424,22 @@ namespace FaceTrackingApp.ViewModels
                     Faces.Add(overlay);
                 }
                 overlay.Update(x, y, w, h, face.Score, face.IsPrimary, result.FrameWidth);
+
+                // Augen: gleiche Begrenzung/Spiegelung wie das Gesicht, dann relativ zum Gesichtsrahmen
+                var eyes = new List<BoxF>(face.Eyes.Count);
+                foreach (var e in face.Eyes)
+                {
+                    double ex = Math.Clamp(e.X, 0, result.FrameWidth);
+                    double ey = Math.Clamp(e.Y, 0, result.FrameHeight);
+                    double ew = Math.Clamp(e.W, 0, result.FrameWidth - ex);
+                    double eh = Math.Clamp(e.H, 0, result.FrameHeight - ey);
+                    if (ew < 1 || eh < 1)
+                        continue;
+                    if (Mirror)
+                        ex = result.FrameWidth - ex - ew;
+                    eyes.Add(new BoxF(ex - x, ey - y, ew, eh));
+                }
+                overlay.UpdateEyes(eyes);
             }
 
             for (int i = Faces.Count - 1; i >= 0; i--)

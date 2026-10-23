@@ -99,6 +99,7 @@
 
                     <CheckBox Content="Spiegeln" IsChecked="{Binding Mirror}" Margin="18,0,0,0" VerticalAlignment="Center" />
                     <CheckBox Content="Rahmen" IsChecked="{Binding ShowOverlay}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                    <CheckBox Content="Augen" IsChecked="{Binding ShowEyes}" Margin="12,0,0,0" VerticalAlignment="Center" />
 
                     <Button Command="{Binding ToggleCameraCommand}" Margin="18,0,0,0" Padding="16,7"
                             Background="{StaticResource AccentBrush}" Foreground="#0B1A26" VerticalAlignment="Center">
@@ -151,6 +152,29 @@
                                             <Rectangle x:Name="Box" RadiusX="6" RadiusY="6"
                                                        Stroke="{StaticResource FaceBrush}"
                                                        StrokeThickness="{Binding StrokeThickness}" />
+
+                                            <!-- Stufe 2: Augen (grün), Koordinaten relativ zum Gesichtsrahmen -->
+                                            <ItemsControl ItemsSource="{Binding Eyes}" IsHitTestVisible="False"
+                                                          Visibility="{Binding DataContext.ShowEyes, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <Canvas />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemContainerStyle>
+                                                    <Style TargetType="ContentPresenter">
+                                                        <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                        <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                                    </Style>
+                                                </ItemsControl.ItemContainerStyle>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Rectangle Width="{Binding Width}" Height="{Binding Height}"
+                                                                   Stroke="{StaticResource EyeBrush}"
+                                                                   StrokeThickness="{Binding StrokeThickness}" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
 
                                             <!-- Fadenkreuz nur beim Hauptgesicht (größtes) -->
                                             <Grid x:Name="Cross" Visibility="Collapsed">
@@ -226,6 +250,7 @@
                                     </DockPanel>
                                     <TextBlock Text="{Binding PositionText}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
                                     <TextBlock Text="{Binding SizeText}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+                                    <TextBlock Text="{Binding EyesText}" FontSize="12" Foreground="{StaticResource EyeBrush}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>

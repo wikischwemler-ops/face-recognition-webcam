@@ -66,7 +66,22 @@ namespace FaceTrackingApp.Services
                 float x = _faces.At<float>(i, 0), y = _faces.At<float>(i, 1);
                 float w = _faces.At<float>(i, 2), h = _faces.At<float>(i, 3);
                 float score = _faces.At<float>(i, 14);
-                result.Add(new DetectedFace(new BoxF(x, y, w, h), score));
+
+                // Landmarken 0/1: rechtes/linkes Auge (Mittelpunkte) → Rechtecke als Rückfallebene für Stufe 2
+                float rx = _faces.At<float>(i, 4), ry = _faces.At<float>(i, 5);
+                float lx = _faces.At<float>(i, 6), ly = _faces.At<float>(i, 7);
+                double dist = Math.Sqrt((rx - lx) * (rx - lx) + (ry - ly) * (ry - ly));
+                BoxF[]? eyes = null;
+                if (dist > 4)
+                {
+                    double ew = dist * 0.55, eh = dist * 0.35;
+                    eyes = new[]
+                    {
+                        new BoxF(rx - ew / 2, ry - eh / 2, ew, eh),
+                        new BoxF(lx - ew / 2, ly - eh / 2, ew, eh)
+                    };
+                }
+                result.Add(new DetectedFace(new BoxF(x, y, w, h), score, eyes));
             }
             return result;
         }
@@ -159,6 +174,89 @@ namespace FaceTrackingApp.Services
         }
     }
 
+    // ====================================================================== Stufe 2: Augen
+
+    /// <summary>
+    /// Sucht Augen mit einer Haar-Cascade – nur im oberen Bereich eines bereits gefundenen Gesichts.
+    /// Kleine Gesichter werden dafür hochskaliert, damit die Cascade die Augen noch auflösen kann.
+    /// </summary>
+    public sealed class EyeDetector : IDisposable
+    {
+        private const int MinSearchWidth = 160;
+        private readonly CascadeClassifier _cascade;
+        private readonly Mat _scaled = new();
+
+        public EyeDetector(string cascadePath)
+        {
+            _cascade = new CascadeClassifier(cascadePath);
+            if (_cascade.Empty())
+                throw new InvalidOperationException("Augen-Cascade konnte nicht geladen werden.");
+        }
+
+        public string Name => "Haar-Augen";
+
+        /// <summary>
+        /// Liefert höchstens ein Auge je Gesichtshälfte, in Bildkoordinaten von <paramref name="gray"/>.
+        /// </summary>
+        /// <param name="gray">Graustufenbild (histogrammausgeglichen) des ganzen Frames.</param>
+        /// <param name="face">Gesichtsrahmen in Koordinaten von <paramref name="gray"/>.</param>
+        public IReadOnlyList<BoxF> Detect(Mat gray, BoxF face)
+        {
+            // Augen liegen etwa bei 15–60 % der Gesichtshöhe
+            int x1 = (int)Math.Max(0, face.X);
+            int y1 = (int)Math.Max(0, face.Y + face.H * 0.15);
+            int x2 = (int)Math.Min(gray.Width, face.X + face.W);
+            int y2 = (int)Math.Min(gray.Height, face.Y + face.H * 0.60);
+            int w = x2 - x1, h = y2 - y1;
+            if (w < 16 || h < 8)
+                return Array.Empty<BoxF>();
+
+            using var roi = new Mat(gray, new Rect(x1, y1, w, h));
+            double up = w < MinSearchWidth ? (double)MinSearchWidth / w : 1.0;
+            Mat search = roi;
+            if (up > 1)
+            {
+                Cv2.Resize(roi, _scaled, new Size(), up, up, InterpolationFlags.Linear);
+                search = _scaled;
+            }
+
+            int sw = search.Width;
+            var rects = _cascade.DetectMultiScale(search, 1.1, 5, HaarDetectionTypes.ScaleImage,
+                new Size(Math.Max(8, sw / 9), Math.Max(8, sw / 9)),
+                new Size(sw / 2, sw / 2));
+
+            // Je Gesichtshälfte das größte Kandidaten-Auge behalten (verwirft Augenbrauen/Nasenlöcher)
+            Rect? left = null, right = null;
+            double mid = sw / 2.0;
+            foreach (var r in rects)
+            {
+                double cx = r.X + r.Width / 2.0;
+                if (cx < mid)
+                {
+                    if (left is null || r.Width * r.Height > left.Value.Width * left.Value.Height) left = r;
+                }
+                else
+                {
+                    if (right is null || r.Width * r.Height > right.Value.Width * right.Value.Height) right = r;
+                }
+            }
+
+            var result = new List<BoxF>(2);
+            foreach (var r in new[] { left, right })
+            {
+                if (r is { } e)
+                    result.Add(new BoxF(x1 + e.X / up, y1 + e.Y / up, e.Width / up, e.Height / up));
+            }
+            return result;
+        }
+
+        public void Dispose()
+        {
+            _scaled.Dispose();
+            _cascade.Dispose();
+        }
+    }
+
     public static class FaceDetectorFactory
     {
         public static string AssetsDirectory => Path.Combine(AppContext.BaseDirectory, "Assets");
@@ -194,6 +292,20 @@ namespace FaceTrackingApp.Services
             throw new FileNotFoundException(
                 $"Kein Gesichtserkennungsmodell in „{dir}“ gefunden oder ladbar. {string.Join(" | ", errors)}");
         }
+
+        /// <summary>Augen-Detektor für Stufe 2, oder null, wenn die Cascade fehlt (dann nur YuNet-Landmarken).</summary>
+        public static EyeDetector? CreateEyeDetector()
+        {
+            string path = Path.Combine(AssetsDirectory, "haarcascade_eye.xml");
+            if (!File.Exists(path))
+                return null;
+            try { return new EyeDetector(path); }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Augen-Cascade: {ex.Message}");
+                return null;
+            }
+        }
     }
 
     // ====================================================================== Hintergrund-Erkennung
@@ -214,8 +326,10 @@ namespace FaceTrackingApp.Services
     {
         private readonly CameraService _camera;
         private readonly IFaceDetector _detector;
+        private readonly EyeDetector? _eyeDetector;
         private readonly FaceTracker _tracker = new();
         private readonly Mat _small = new();
+        private readonly Mat _gray = new();
         private Thread? _thread;
         private volatile bool _running;
         private DetectionResult? _latest;
@@ -226,9 +340,12 @@ namespace FaceTrackingApp.Services
         {
             _camera = camera;
             _detector = FaceDetectorFactory.CreateBest();
+            _eyeDetector = FaceDetectorFactory.CreateEyeDetector();
         }
 
-        public string DetectorName => _detector.Name;
+        public string DetectorName => _eyeDetector is not null
+            ? $"{_detector.Name} + {_eyeDetector.Name}"
+            : _detector.Name;
         public DetectionResult? Latest => Volatile.Read(ref _latest);
         public double DetectionFps => Volatile.Read(ref _detectFps);
 
@@ -283,10 +400,16 @@ namespace FaceTrackingApp.Services
                 try
                 {
                     var sw = Stopwatch.StartNew();
+                    // Stufe 1: Gesichter
                     var detections = _detector.Detect(_small);
+
+                    // Stufe 2: Augen innerhalb jedes Gesichts
+                    if (_eyeDetector is not null && detections.Count > 0)
+                        detections = DetectEyes(detections);
+
                     var scaled = new List<DetectedFace>(detections.Count);
                     foreach (var d in detections)
-                        scaled.Add(d with { Box = d.Box.Scale(scale) });
+                        scaled.Add(d with { Box = d.Box.Scale(scale), Eyes = ScaleAll(d.Eyes, scale) });
 
                     var tracked = _tracker.Update(scaled);
                     sw.Stop();
@@ -309,11 +432,39 @@ namespace FaceTrackingApp.Services
             }
         }
 
+        private IReadOnlyList<DetectedFace> DetectEyes(IReadOnlyList<DetectedFace> faces)
+        {
+            Cv2.CvtColor(_small, _gray, ColorConversionCodes.BGR2GRAY);
+            Cv2.EqualizeHist(_gray, _gray);
+
+            var result = new List<DetectedFace>(faces.Count);
+            foreach (var face in faces)
+            {
+                var eyes = _eyeDetector!.Detect(_gray, face.Box);
+                // Cascade-Treffer bevorzugen; YuNet-Landmarken nur behalten, wenn sie mehr Augen liefern
+                bool useCascade = eyes.Count > 0 && eyes.Count >= (face.Eyes?.Count ?? 0);
+                result.Add(useCascade ? face with { Eyes = eyes } : face);
+            }
+            return result;
+        }
+
+        private static IReadOnlyList<BoxF>? ScaleAll(IReadOnlyList<BoxF>? boxes, double scale)
+        {
+            if (boxes is null)
+                return null;
+            var result = new BoxF[boxes.Count];
+            for (int i = 0; i < boxes.Count; i++)
+                result[i] = boxes[i].Scale(scale);
+            return result;
+        }
+
         public void Dispose()
         {
             Stop();
             _detector.Dispose();
+            _eyeDetector?.Dispose();
             _small.Dispose();
+            _gray.Dispose();
         }
     }
 }

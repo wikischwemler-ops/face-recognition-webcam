@@ -24,6 +24,9 @@
     <DownloadYuNet Condition="'$(DownloadYuNet)' == ''">true</DownloadYuNet>
     <YuNetFile>$(MSBuildProjectDirectory)\Assets\face_detection_yunet_2023mar.onnx</YuNetFile>
     <YuNetUrl>https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx</YuNetUrl>
+    <!-- Augen-Cascade für Stufe 2 (ca. 340 KB) -->
+    <EyeCascadeFile>$(MSBuildProjectDirectory)\Assets\haarcascade_eye.xml</EyeCascadeFile>
+    <EyeCascadeUrl>https://raw.githubusercontent.com/opencv/opencv/4.x/data/haarcascades/haarcascade_eye.xml</EyeCascadeUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -44,6 +47,19 @@
   <Target Name="DownloadYuNetModel" BeforeTargets="BeforeBuild" Condition="'$(DownloadYuNet)' == 'true' And !Exists('$(YuNetFile)')">
     <Message Importance="high" Text="Lade YuNet-Gesichtsdetektor (ca. 230 KB) ..." />
     <DownloadFile SourceUrl="$(YuNetUrl)" DestinationFolder="$(MSBuildProjectDirectory)\Assets" Retries="2" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+  <Target Name="DownloadEyeCascade" BeforeTargets="BeforeBuild" Condition="!Exists('$(EyeCascadeFile)')">
+    <Message Importance="high" Text="Lade Augen-Cascade (ca. 340 KB) ..." />
+    <DownloadFile SourceUrl="$(EyeCascadeUrl)" DestinationFolder="$(MSBuildProjectDirectory)\Assets" Retries="2" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+  <Target Name="CopyEyeCascade" AfterTargets="Build" Condition="Exists('$(EyeCascadeFile)')">
+    <Copy SourceFiles="$(EyeCascadeFile)" DestinationFolder="$(OutDir)Assets" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PublishEyeCascade" AfterTargets="Publish" Condition="Exists('$(EyeCascadeFile)')">
+    <Copy SourceFiles="$(EyeCascadeFile)" DestinationFolder="$(PublishDir)Assets" SkipUnchangedFiles="true" />
   </Target>
 
   <!-- Falls die Datei erst in diesem Build geladen wurde, ist sie nicht im Glob enthalten: explizit kopieren -->

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace FaceTrackingApp.Models
 {
@@ -76,9 +77,13 @@ namespace FaceTrackingApp.Models
         public BoxF Scale(double s) => new(X * s, Y * s, W * s, H * s);
     }
 
-    /// <summary>Rohes Detektor-Ergebnis. Score = NaN, wenn der Detektor keine Konfidenz liefert.</summary>
-    public readonly record struct DetectedFace(BoxF Box, float Score);
+    /// <summary>
+    /// Rohes Detektor-Ergebnis. Score = NaN, wenn der Detektor keine Konfidenz liefert.
+    /// Eyes: Augen-Rechtecke in denselben Bildkoordinaten wie Box (null = nicht ermittelt).
+    /// </summary>
+    public readonly record struct DetectedFace(BoxF Box, float Score, IReadOnlyList<BoxF>? Eyes = null);
 
     /// <summary>Über mehrere Frames verfolgtes Gesicht (unveränderlicher Snapshot für die UI).</summary>
-    public sealed record TrackedFaceSnapshot(int Id, BoxF Box, float Score, bool IsPrimary);
+    /// <param name="Eyes">Augen in Bildkoordinaten, links→rechts sortiert (leer = keine gefunden).</param>
+    public sealed record TrackedFaceSnapshot(int Id, BoxF Box, float Score, bool IsPrimary, IReadOnlyList<BoxF> Eyes);
 }
